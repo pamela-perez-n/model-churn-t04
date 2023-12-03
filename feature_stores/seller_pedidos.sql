@@ -1,4 +1,3 @@
--- Databricks notebook source
 with tb_pedidos AS (
 
     SELECT t1.idPedido,
@@ -21,14 +20,14 @@ with tb_pedidos AS (
     LEFT JOIN silver.olist.cliente AS t3
     ON t1.idCliente = t3.idCliente
 
-    WHERE t1.dtPedido < '2018-01-01'
+    WHERE t1.dtPedido < '{date}'
     AND t2.idVendedor is not null
 ),
 
 tb_agin AS (
     SELECT idVendedor,
-          date_diff('2018-01-01',min(dtPedido)) AS nrIdade,
-          date_diff('2018-01-01',max(dtPedido)) AS nrRecencia
+          date_diff('{date}',min(dtPedido)) AS nrIdade,
+          date_diff('{date}',max(dtPedido)) AS nrRecencia
     FROM tb_pedidos
     GROUP BY idVendedor
 ),
@@ -36,7 +35,7 @@ tb_agin AS (
 tb_pedidos_m12 AS (
     SELECT *
     FROM tb_pedidos
-    WHERE dtPedido >= date('2018-01-01') - INTERVAL 1 YEAR -- 2017-01-01
+    WHERE dtPedido >= date('{date}') - INTERVAL 1 YEAR -- 2017-01-01
 ),
 
 tb_sumario_m12 AS (
@@ -51,7 +50,7 @@ tb_sumario_m12 AS (
           sum(vlFrete) / (sum(vlFrete+vlPreco)) AS pctFreteValor,
           count(idPedido) / count(distinct idPedido) AS nrQtdeItemPedido,
           count(distinct idPedido) / count(distinct date_trunc('MONTH', dtPedido)) AS nrMediaVendaMes,
-          count(distinct date_trunc('MONTH', dtPedido)) / (int(date_diff('2018-01-01', min(dtPedido)) / 30) + 1) AS pctMesesAtivacao,
+          count(distinct date_trunc('MONTH', dtPedido)) / (int(date_diff('{date}', min(dtPedido)) / 30) + 1) AS pctMesesAtivacao,
           count(distinct date(dtPedido)) AS nrDiasPedido,
 
           COUNT(DISTINCT CASE WHEN descuf = 'AC' THEN idPedido END) / count(distinct idPedido) AS pctPedidoAC,
@@ -179,7 +178,7 @@ tb_produto_share (
  )
 
 SELECT 
-
+        '{date}' AS dtSafra,
         t1.idVendedor,
         t1.nrIdade,
         t1.nrRecencia,
@@ -250,3 +249,5 @@ LEFT JOIN tb_produto_share as t5
 ON t1.idVendedor = t5.idVendedor
 
 WHERE t2.idVendedor IS NOT NULL
+
+

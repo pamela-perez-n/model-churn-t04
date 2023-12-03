@@ -1,4 +1,3 @@
--- Databricks notebook source
 WITH tb_pedidos (
     SELECT t1.idPedido,
           t2.idVendedor,
@@ -15,12 +14,13 @@ WITH tb_pedidos (
     LEFT JOIN silver.olist.pagamento_pedido AS t3
     ON t1.idPedido = t3.idPedido
 
-    WHERE t1.dtPedido < '2018-01-01'
-    AND t1.dtPedido >= date('2018-01-01') - INTERVAL 1 YEAR
+    WHERE t1.dtPedido < '{date}'
+    AND t1.dtPedido >= date('{date}') - INTERVAL 1 YEAR
     AND idVendedor is not null
 )
 
-SELECT idVendedor,
+SELECT  '{date}' AS dtSafra,
+        idVendedor,
         count(distinct case when descTipoPagamento = 'boleto' then idPedido end) / count(distinct idPedido) as qtdBoleto,
         count(distinct case when descTipoPagamento = 'credit_card' then idPedido end) / count(distinct idPedido) as qtdCredit_card,
         count(distinct case when descTipoPagamento = 'voucher' then idPedido end) / count(distinct idPedido) as qtdVoucher,
@@ -31,4 +31,7 @@ SELECT idVendedor,
 
 FROM tb_pedidos
 
-group by idVendedor
+group by 1,2
+
+
+

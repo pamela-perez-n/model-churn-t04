@@ -1,4 +1,3 @@
--- Databricks notebook source
 --  percentual de avaliações respondidas
 
 WITH tb_pedidos_avaliacoes AS (
@@ -22,9 +21,9 @@ WITH tb_pedidos_avaliacoes AS (
     LEFT JOIN silver.olist.avaliacao_pedido AS t3
     ON t1.idPedido = t3.idPedido
 
-    WHERE t1.dtPedido < '2018-01-01'
-    AND t1.dtPedido >= '2017-01-01'
-    AND t1.dtEntregue <  DATE('2018-01-01') - INTERVAL 7 DAYS
+    WHERE t1.dtPedido < '{date}' -- 2018-01-01
+    AND t1.dtPedido >= DATE('{date}') - INTERVAL 1 YEARS
+    AND t1.dtEntregue <  DATE('{date}') - INTERVAL 7 DAYS
     -- Pedidos que tem mais de 7 dias que foram entregues
 
 ),
@@ -56,7 +55,9 @@ tb_group (
 
 )
 
-SELECT '2018-01-01' AS dtSafra,
+SELECT '{date}' AS dtSafra,
         *
 
 FROM tb_group
+
+
