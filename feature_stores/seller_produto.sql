@@ -1,4 +1,3 @@
--- Databricks notebook source
 WITH tb_pedido AS (
 
     SELECT t1.idPedido,
@@ -15,8 +14,8 @@ WITH tb_pedido AS (
     LEFT JOIN silver.olist.produto AS t3
     ON t3.idProduto = t2.idProduto
 
-    WHERE t1.dtPedido < '2018-01-01'
-    AND t1.dtPedido >= date('2018-01-01') - INTERVAL 1 YEAR
+    WHERE t1.dtPedido < '{date}'
+    AND t1.dtPedido >= date('{date}') - INTERVAL 1 YEAR
     AND t2.idVendedor is not null
 
 ),
@@ -59,7 +58,7 @@ tb_group AS (
         count(case when descCategoria = 'papelaria' then idPedido end) / COUNT(*) AS qtde_papelaria,
 
         1000 * sum(vlFrete) / sum( vlAlturaCm * vlComprimentoCm * vlLarguraCm ) AS nrFreteCubagem,
-        sum(vlFrete) / sum(vlPesoGramas) AS nrFreteCubagem,
+        sum(vlFrete) / sum(vlPesoGramas) AS nrFretePeso,
         avg(vlAlturaCm * vlComprimentoCm * vlLarguraCm) AS avgCubagem,
         avg(vlPesoGramas) AS avgPeso
 
@@ -120,7 +119,9 @@ tb_top_categoria AS (
 
 )
 
-SELECT t1.*,
+SELECT 
+       '{date}' AS dtSafra,
+       t1.*,
        t2.descCategoria AS topCategoriaVenda,
        t3.descCategoria AS topCategoriaReceita
 
@@ -133,3 +134,5 @@ AND t2.rankProdutoQtde = 1
 LEFT JOIN tb_top_categoria AS t3
 ON t1.idVendedor = t3.idVendedor
 AND t3.rankProdutoReceita = 1
+
+
