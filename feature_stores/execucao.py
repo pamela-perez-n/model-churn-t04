@@ -65,15 +65,3 @@ query = read_query(f"{table_name}.sql")
 
 for date in dates_month:
     make_ingestion(query, date, "analytics.asn", table_name)
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC SELECT * FROM analytics.asn.seller_pagamento
-# MAGIC WHERE idVendedor = '7aa4334be125fcdd2ba64b3180029f14'
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC
-# MAGIC DROP TABLE analytics.asn.seller_avaliacoes;
