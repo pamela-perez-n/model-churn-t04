@@ -42,22 +42,6 @@ pd.set_option('display.max_rows', 1000)
 
 X_train[num_features].isna().sum().sort_values(ascending=False) # / X_train.shape[0]
 
-# medianTempoTespostaAvaliacao -> media, mediana, modelo, -1000
-# avgNotaAvaliacao             -> media, mediana, modelo, -1000
-# avgTempoTespostaAvaliacao    -> media, mediana, modelo, -1000
-
-# nrAvgIntervaloVenda -> média, mediana, modelo, 1000
-# nrMinIntervaloVenda -> média, mediana, modelo, 1000
-# nrMaxIntervaloVenda -> média, mediana, modelo, 1000
-
-# nrTempoMedioEntregaPromessa -> 1000
-# nrTempoMedioEntrega         -> 1000
-
-# avgCubagem     -> média
-# nrFretePeso    -> média
-# nrFreteCubagem -> média
-# avgPeso        -> média
-
 # COMMAND ----------
 
 # DBTITLE 1,EXPLORE
@@ -77,9 +61,14 @@ describe.sort_values('ratio', ascending=False)
 
 # COMMAND ----------
 
+X_train[cat_features]
+
+# COMMAND ----------
+
 # DBTITLE 1,MODIFY
 from feature_engine import imputation
 
+# Imputação com zeros
 features_zeros = [
     'descAvaliacaoNeutraPedidoAvaliado',
     'descAvaliacaoAltaPedidoAvaliado',
@@ -97,7 +86,68 @@ imputer_zeros.fit(X_train, y_train)
 X_train_transform = imputer_zeros.transform(X_train)
 X_test_transform = imputer_zeros.transform(X_test)
 
+## Imputação com média
+features_avg = [
+    'avgCubagem',
+    'nrFretePeso',
+    'nrFreteCubagem',
+    'avgPeso',
+]
+
+imputer_avg = imputation.MeanMedianImputer(variables=features_avg, imputation_method='mean')
+imputer_avg.fit(X_train_transform, y_train)          # aprende a imputação que vai ser feita a partir dos dados de X_train
+
+X_train_transform = imputer_avg.transform(X_train_transform)
+X_test_transform = imputer_avg.transform(X_test_transform)
+
+## Imputação com 1000
+features_1000 = [
+    'nrAvgIntervaloVenda',
+    'nrMinIntervaloVenda',
+    'nrMaxIntervaloVenda',
+    'nrTempoMedioEntregaPromessa',
+    'nrTempoMedioEntrega',
+]
+
+imputer_1000 = imputation.ArbitraryNumberImputer(variables=features_1000, arbitrary_number=1000)
+imputer_1000.fit(X_train_transform, y_train)
+
+X_train_transform = imputer_1000.transform(X_train_transform)
+X_test_transform = imputer_1000.transform(X_test_transform)
+
+## Imputação com -1000
+features_minus_1000 = [
+    'medianTempoTespostaAvaliacao',
+    'avgNotaAvaliacao',
+    'avgTempoTespostaAvaliacao',
+]
+
+imputer_minus_1000 = imputation.ArbitraryNumberImputer(variables=features_minus_1000, arbitrary_number=-1000)
+imputer_minus_1000.fit(X_train_transform, y_train)
+
+X_train_transform = imputer_minus_1000.transform(X_train_transform)
+X_test_transform = imputer_minus_1000.transform(X_test_transform)
+
 
 # COMMAND ----------
 
-X_test[features_zeros].isna().sum()
+# DBTITLE 1,Média (valéria)
+from sklearn import tree
+
+clf = tree.DecisionTreeClassifier(min_samples_leaf=50)
+
+clf.fit(X_train_transform[num_features], y_train)
+
+# COMMAND ----------
+
+from sklearn import metrics
+
+y_predict = clf.predict(X_train_transform[num_features] )
+y_predict
+
+metrics.accuracy_score(y_train, y_predict)
+
+# COMMAND ----------
+
+y_predict_test = clf.predict( X_test_transform[num_features] )
+metrics.accuracy_score(y_test, y_predict_test)
