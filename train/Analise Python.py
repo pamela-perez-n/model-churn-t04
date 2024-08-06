@@ -61,12 +61,18 @@ describe.sort_values('ratio', ascending=False)
 
 # COMMAND ----------
 
-X_train[cat_features]
+# (df_train.groupby(cat_features[0])[target]
+#          .agg(['count', 'mean'])
+#          .sort_values(['mean', 'count'], ascending=[False, True])
+#          )
+
+X_train[cat_features].isna().sum()
 
 # COMMAND ----------
 
 # DBTITLE 1,MODIFY
 from feature_engine import imputation
+from feature_engine import encoding
 
 # Imputação com zeros
 features_zeros = [
@@ -129,25 +135,37 @@ X_train_transform = imputer_minus_1000.transform(X_train_transform)
 X_test_transform = imputer_minus_1000.transform(X_test_transform)
 
 
+## Imputação com sem_informacao
+imputer_missing_cat = imputation.CategoricalImputer(variables=cat_features, fill_value="sem_informacao")
+imputer_missing_cat.fit(X_train_transform, y_train)
+
+X_train_transform = imputer_missing_cat.transform(X_train_transform)
+X_test_transform = imputer_missing_cat.transform(X_test_transform)
+
+## Encoding
+mean_encoder = encoding.MeanEncoder(variables=cat_features, unseen='encode')
+mean_encoder.fit(X_train_transform, y_train)
+
+X_train_transform = mean_encoder.transform(X_train_transform)
+X_test_transform = mean_encoder.transform(X_test_transform)
+
 # COMMAND ----------
 
 # DBTITLE 1,Média (valéria)
 from sklearn import tree
 
-clf = tree.DecisionTreeClassifier(min_samples_leaf=50)
+clf = tree.DecisionTreeClassifier(min_samples_leaf=50, random_state=42)
 
-clf.fit(X_train_transform[num_features], y_train)
+clf.fit(X_train_transform, y_train)
 
 # COMMAND ----------
 
 from sklearn import metrics
 
-y_predict = clf.predict(X_train_transform[num_features] )
+y_predict = clf.predict(X_train_transform)
 y_predict
 
 metrics.accuracy_score(y_train, y_predict)
 
-# COMMAND ----------
-
-y_predict_test = clf.predict( X_test_transform[num_features] )
+y_predict_test = clf.predict( X_test_transform)
 metrics.accuracy_score(y_test, y_predict_test)
