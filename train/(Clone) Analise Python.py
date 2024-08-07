@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %pip install feature-engine pandas==2.2.2
+# MAGIC %pip install feature-engine
 
 # COMMAND ----------
 
@@ -61,7 +61,6 @@ describe.sort_values('ratio', ascending=False)
 
 # COMMAND ----------
 
-# DBTITLE 1,EXPLORE
 # (df_train.groupby(cat_features[0])[target]
 #          .agg(['count', 'mean'])
 #          .sort_values(['mean', 'count'], ascending=[False, True])
@@ -89,6 +88,10 @@ features_zeros = [
 ]
 
 imputer_zeros = imputation.ArbitraryNumberImputer(variables=features_zeros, arbitrary_number=0)
+imputer_zeros.fit(X_train, y_train)
+
+X_train_transform = imputer_zeros.transform(X_train)
+X_test_transform = imputer_zeros.transform(X_test)
 
 ## Imputação com média
 features_avg = [
@@ -99,6 +102,10 @@ features_avg = [
 ]
 
 imputer_avg = imputation.MeanMedianImputer(variables=features_avg, imputation_method='mean')
+imputer_avg.fit(X_train_transform, y_train)          # aprende a imputação que vai ser feita a partir dos dados de X_train
+
+X_train_transform = imputer_avg.transform(X_train_transform)
+X_test_transform = imputer_avg.transform(X_test_transform)
 
 ## Imputação com 1000
 features_1000 = [
@@ -110,6 +117,10 @@ features_1000 = [
 ]
 
 imputer_1000 = imputation.ArbitraryNumberImputer(variables=features_1000, arbitrary_number=1000)
+imputer_1000.fit(X_train_transform, y_train)
+
+X_train_transform = imputer_1000.transform(X_train_transform)
+X_test_transform = imputer_1000.transform(X_test_transform)
 
 ## Imputação com -1000
 features_minus_1000 = [
@@ -119,79 +130,51 @@ features_minus_1000 = [
 ]
 
 imputer_minus_1000 = imputation.ArbitraryNumberImputer(variables=features_minus_1000, arbitrary_number=-1000)
+imputer_minus_1000.fit(X_train_transform, y_train)
+
+X_train_transform = imputer_minus_1000.transform(X_train_transform)
+X_test_transform = imputer_minus_1000.transform(X_test_transform)
+
 
 ## Imputação com sem_informacao
 imputer_missing_cat = imputation.CategoricalImputer(variables=cat_features, fill_value="sem_informacao")
+imputer_missing_cat.fit(X_train_transform, y_train)
+
+X_train_transform = imputer_missing_cat.transform(X_train_transform)
+X_test_transform = imputer_missing_cat.transform(X_test_transform)
 
 ## Encoding
 mean_encoder = encoding.MeanEncoder(variables=cat_features, unseen='encode')
+mean_encoder.fit(X_train_transform, y_train)
+
+X_train_transform = mean_encoder.transform(X_train_transform)
+X_test_transform = mean_encoder.transform(X_test_transform)
 
 ## Discretiser
 discretiser = discretisation.EqualWidthDiscretiser(variables=cat_features, bins=10)
+discretiser.fit(X_train_transform, y_train)
+
+X_train_transform = discretiser.transform(X_train_transform)
+X_test_transform = discretiser.transform(X_test_transform)
 
 # COMMAND ----------
 
-# DBTITLE 1,MODEL
+# DBTITLE 1,Média (valéria)
 from sklearn import tree
-from sklearn import pipeline
 
 clf = tree.DecisionTreeClassifier(min_samples_leaf=50, random_state=42)
 
-meu_pipeline = pipeline.Pipeline(steps=[
-    ("Imput 1000", imputer_1000),
-    ("Imput AVG", imputer_avg),
-    ("Imput -1000", imputer_minus_1000),
-    ("Imput 0", imputer_zeros),
-    ("Imput Categorias", imputer_missing_cat ),
-    ("Encoding", mean_encoder),
-    ("Discretiser", discretiser),
-    ("Modelo", clf),
-])
-
-meu_pipeline.fit(X_train, y_train)
+clf.fit(X_train_transform, y_train)
 
 # COMMAND ----------
 
 from sklearn import metrics
 
-y_predict = meu_pipeline.predict(X_train)
-y_predict_test = meu_pipeline.predict(X_test)
+y_predict = clf.predict(X_train_transform)
+y_predict_test = clf.predict( X_test_transform)
 
 acc_train = metrics.accuracy_score(y_train, y_predict)
 acc_test = metrics.accuracy_score(y_test, y_predict_test)
 
 print("ACC train:", acc_train)
 print("ACC test:", acc_test)
-
-y_proba = meu_pipeline.predict_proba(X_train)
-y_proba_test = meu_pipeline.predict_proba(X_test)
-
-auc_train = metrics.roc_auc_score(y_train, y_proba[:,1])
-auc_test = metrics.roc_auc_score(y_test, y_proba_test[:,1])
-
-print("AUC train:", auc_train)
-print("AUC test:", auc_test)
-
-# COMMAND ----------
-
-y_proba_test
-
-# COMMAND ----------
-
-df_test = pd.DataFrame()
-df_test[target] = y_test
-df_test['proba_churn'] = y_proba_test[:,1]
-df_test.sort_values(by='proba_churn', ascending=False).head(130)['flChurnMes'].sum()
-
-# 74 / 357 TAXA DE RESPOSTA CAPTURADA (GAIN)
-
-df_test.sort_values(by='proba_churn', ascending=False).head(130)['flChurnMes'].mean().round(2) / y_test.mean()
-# LIFT
-
-# COMMAND ----------
-
-df_test
-
-# COMMAND ----------
-
-dados = {"nome":"Téo", "idade":32}
