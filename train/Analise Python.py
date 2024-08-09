@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %pip install feature-engine pandas==2.2.2
+# MAGIC %pip install feature-engine pandas==2.2.2 
 
 # COMMAND ----------
 
@@ -134,64 +134,63 @@ discretiser = discretisation.EqualWidthDiscretiser(variables=cat_features, bins=
 # DBTITLE 1,MODEL
 from sklearn import tree
 from sklearn import pipeline
-
-clf = tree.DecisionTreeClassifier(min_samples_leaf=50, random_state=42)
-
-meu_pipeline = pipeline.Pipeline(steps=[
-    ("Imput 1000", imputer_1000),
-    ("Imput AVG", imputer_avg),
-    ("Imput -1000", imputer_minus_1000),
-    ("Imput 0", imputer_zeros),
-    ("Imput Categorias", imputer_missing_cat ),
-    ("Encoding", mean_encoder),
-    ("Discretiser", discretiser),
-    ("Modelo", clf),
-])
-
-meu_pipeline.fit(X_train, y_train)
-
-# COMMAND ----------
-
+from sklearn import linear_model
+from sklearn import ensemble
 from sklearn import metrics
+from sklearn import model_selection
 
-y_predict = meu_pipeline.predict(X_train)
-y_predict_test = meu_pipeline.predict(X_test)
+import mlflow
 
-acc_train = metrics.accuracy_score(y_train, y_predict)
-acc_test = metrics.accuracy_score(y_test, y_predict_test)
+mlflow.set_experiment(experiment_id=2922960558567943)
 
-print("ACC train:", acc_train)
-print("ACC test:", acc_test)
+with mlflow.start_run() as run:
 
-y_proba = meu_pipeline.predict_proba(X_train)
-y_proba_test = meu_pipeline.predict_proba(X_test)
+    mlflow.sklearn.autolog()
 
-auc_train = metrics.roc_auc_score(y_train, y_proba[:,1])
-auc_test = metrics.roc_auc_score(y_test, y_proba_test[:,1])
+    # clf = tree.DecisionTreeClassifier(min_samples_leaf=50, random_state=42)
+    # clf = linear_model.LogisticRegression(random_state=42)
+    # clf = ensemble.RandomForestClassifier(n_estimators=100, min_samples_leaf=50, random_state=42)
+    # clf = ensemble.AdaBoostClassifier(n_estimators=500, random_state=42, learning_rate=0.01, algorithm="SAMME")
+    clf = ensemble.RandomForestClassifier(random_state=42, max_features=50, n_jobs=-1)
+    
+    params = {
+        "n_estimators": [100, 125, 135, 145, 150, 500,],
+        "min_samples_leaf": [10,20,30,50]
+    }
 
-print("AUC train:", auc_train)
-print("AUC test:", auc_test)
+    grid = model_selection.GridSearchCV(clf, params,  scoring='roc_auc', refit=True, verbose=4, cv=3)
+    
+    meu_pipeline = pipeline.Pipeline(steps=[
+        ("Imput 1000", imputer_1000),
+        ("Imput AVG", imputer_avg),
+        ("Imput -1000", imputer_minus_1000),
+        ("Imput 0", imputer_zeros),
+        ("Imput Categorias", imputer_missing_cat ),
+        ("Encoding", mean_encoder),
+        ("Discretiser", discretiser),
+        ("Modelo", grid),
+    ])
 
-# COMMAND ----------
+    meu_pipeline.fit(X_train, y_train)
 
-y_proba_test
+    y_predict = meu_pipeline.predict(X_train)
+    y_predict_test = meu_pipeline.predict(X_test)
 
-# COMMAND ----------
+    acc_train = metrics.accuracy_score(y_train, y_predict)
+    acc_test = metrics.accuracy_score(y_test, y_predict_test)
 
-df_test = pd.DataFrame()
-df_test[target] = y_test
-df_test['proba_churn'] = y_proba_test[:,1]
-df_test.sort_values(by='proba_churn', ascending=False).head(130)['flChurnMes'].sum()
+    y_proba = meu_pipeline.predict_proba(X_train)
+    y_proba_test = meu_pipeline.predict_proba(X_test)
 
-# 74 / 357 TAXA DE RESPOSTA CAPTURADA (GAIN)
+    auc_train = metrics.roc_auc_score(y_train, y_proba[:,1])
+    auc_test = metrics.roc_auc_score(y_test, y_proba_test[:,1])
 
-df_test.sort_values(by='proba_churn', ascending=False).head(130)['flChurnMes'].mean().round(2) / y_test.mean()
-# LIFT
+    metricas = {
+        "auc_train": auc_train,
+        "auc_test": auc_test,
+        "acc_train": acc_train,
+        "acc_test": acc_test,
+        "auc_diff": auc_train - auc_test,
+    }
 
-# COMMAND ----------
-
-df_test
-
-# COMMAND ----------
-
-dados = {"nome":"Téo", "idade":32}
+    mlflow.log_metrics(metricas)
