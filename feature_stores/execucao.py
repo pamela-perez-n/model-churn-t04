@@ -1,8 +1,6 @@
 # Databricks notebook source
 import datetime
 
-# COMMAND ----------
-
 def read_query(path):
     with open(path, 'r') as open_file:
         return open_file.read()
@@ -40,9 +38,10 @@ def make_ingestion(query, date, database, table):
 
 # COMMAND ----------
 
-
-inicio = '2017-01-01'
-fim = '2017-12-01'
+## parametrizado para execução de tabelas de feature store e safras
+inicio = dbutils.widgets.get("inicio")
+fim = dbutils.widgets.get("fim")
+table_name = dbutils.widgets.get("table_name")
 
 dates = []
 while inicio <= fim :
@@ -56,11 +55,8 @@ for d in dates:
     if d.endswith("01"):
         dates_month.append(d)
 
-dates_month
-
 # COMMAND ----------
 
-table_name = "seller_produto"
 query = read_query(f"{table_name}.sql")
 
 for date in dates_month:
