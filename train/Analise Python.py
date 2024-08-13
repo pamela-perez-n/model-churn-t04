@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %pip install feature-engine pandas==2.2.2 
+# MAGIC %pip install feature-engine pandas==2.2.2
 
 # COMMAND ----------
 
@@ -76,6 +76,8 @@ from feature_engine import imputation
 from feature_engine import encoding
 from feature_engine import discretisation
 
+from sklearn import preprocessing
+
 # Imputação com zeros
 features_zeros = [
     'descAvaliacaoNeutraPedidoAvaliado',
@@ -129,6 +131,9 @@ mean_encoder = encoding.MeanEncoder(variables=cat_features, unseen='encode')
 ## Discretiser
 discretiser = discretisation.EqualWidthDiscretiser(variables=cat_features, bins=10)
 
+## Scaler
+scaler = preprocessing.StandardScaler()
+
 # COMMAND ----------
 
 # DBTITLE 1,MODEL
@@ -138,6 +143,7 @@ from sklearn import linear_model
 from sklearn import ensemble
 from sklearn import metrics
 from sklearn import model_selection
+from sklearn import neural_network
 
 import mlflow
 
@@ -151,15 +157,19 @@ with mlflow.start_run() as run:
     # clf = linear_model.LogisticRegression(random_state=42)
     # clf = ensemble.RandomForestClassifier(n_estimators=100, min_samples_leaf=50, random_state=42)
     # clf = ensemble.AdaBoostClassifier(n_estimators=500, random_state=42, learning_rate=0.01, algorithm="SAMME")
-    clf = ensemble.RandomForestClassifier(random_state=42, max_features=50, n_jobs=-1)
-    
+    # clf = ensemble.RandomForestClassifier(random_state=42, max_features=50, n_jobs=-1)
+
+    clf = neural_network.MLPClassifier(random_state=42, warm_start=True, max_iter=1000)
+
     params = {
-        "n_estimators": [100, 125, 135, 145, 150, 500,],
-        "min_samples_leaf": [10,20,30,50]
+        "activation": ['relu'],
+        "solver": ['lbfgs'],
+        "hidden_layer_sizes": [(5,5,5,5), (10,5,2), (100,50,10), (50,10,5), (2,2,2), (10, 20, 20, 30, 40, 30, 20, 20, 10)],
+        "early_stopping": [True],
     }
 
-    grid = model_selection.GridSearchCV(clf, params,  scoring='roc_auc', refit=True, verbose=4, cv=3)
-    
+    grid = model_selection.GridSearchCV(clf, params,  scoring='roc_auc', refit=True, verbose=4, cv=3, n_jobs=-1)
+
     meu_pipeline = pipeline.Pipeline(steps=[
         ("Imput 1000", imputer_1000),
         ("Imput AVG", imputer_avg),
@@ -167,9 +177,11 @@ with mlflow.start_run() as run:
         ("Imput 0", imputer_zeros),
         ("Imput Categorias", imputer_missing_cat ),
         ("Encoding", mean_encoder),
-        ("Discretiser", discretiser),
+        # ("Discretiser", discretiser),
+        ("Scaler", scaler),
         ("Modelo", grid),
     ])
+
 
     meu_pipeline.fit(X_train, y_train)
 
@@ -194,3 +206,12 @@ with mlflow.start_run() as run:
     }
 
     mlflow.log_metrics(metricas)
+    mlflow.log_dict(grid.best_params_, artifact_file="best_params.txt")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT *
+# MAGIC FROM feature_store.upsell.models
+# MAGIC where idCliente = '7163ce76-587a-4045-aa6a-cbf9ee98f6f6'
+# MAGIC ORDER BY dtRef
