@@ -121,4 +121,4 @@ LEFT JOIN analytics.asn.seller_produto AS t5
 ON t1.idVendedor = t5.idvendedor
 AND t1.dtSafra = t5.dtSafra
 
-WHERE t1.dtSafra = '2018-01-01'
+WHERE t1.dtSafra = '{date}'
